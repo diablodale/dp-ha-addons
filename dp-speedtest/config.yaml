@@ -1,0 +1,49 @@
+# https://developers.home-assistant.io/docs/add-ons/configuration#add-on-config
+
+name: "dp speedtest"
+description: >-
+  Measure internet connection performance metrics with Speedtest CLI
+url: "https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest"
+version: "0.1.0"
+homeassistant: 2025.3.4
+stage: experimental
+slug: "dp-speedtest"
+panel_icon: mdi:speedometer
+# panel_title:
+
+# fyi current addon container is Alpine Linux v3.21 yet their addon template uses alpine v3.15 ghcr.io/home-assistant/amd64-base:3.15
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+#image: "ghcr.io/diablodale/{arch}-dp-speedtest"
+init: false
+#watchdog: ???
+
+# permissions
+homeassistant_api: true # access home assistant REST api proxy at http://supervisor/core/api
+#auth_api: true
+#ingress: true
+#hassio_api: true
+
+# TODO create services like a python http server?
+#startup: services
+#ports:
+#  8000/tcp: 8000
+#map:
+#  - homeassistant_config:rw
+#  - share:rw
+#tmpfs: true
+
+schema:
+  accept_eula: bool
+  accept_privacy: bool
+  server_id: int(1,)?
+  frequency: int(30,43200)
+
+options:
+  accept_eula: false
+  accept_privacy: false
+  frequency: 1440

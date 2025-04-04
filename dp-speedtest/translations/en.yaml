@@ -1,0 +1,39 @@
+# https://developers.home-assistant.io/docs/add-ons/configuration#add-on-translations
+configuration:
+  accept_eula:
+    name: Accept Ookla EULA
+    description: |
+      You may only use this Speedtest software and information generated
+      from it for personal, non-commercial use, through a command line
+      interface on a personal computer. Your use of this software is subject
+      to the End User License Agreement, Terms of Use and Privacy Policy at
+      these URLs:
+        https://www.speedtest.net/about/eula
+        https://www.speedtest.net/about/terms
+        https://www.speedtest.net/about/privacy
+
+  accept_privacy:
+    name: Accept Ookla Privacy Policy
+    description: |
+      Ookla collects certain data through Speedtest that may be considered
+      personally identifiable, such as your IP address, unique device
+      identifiers or location. Ookla believes it has a legitimate interest
+      to share this data with internet providers, hardware manufacturers and
+      industry regulators to help them understand and create a better and
+      faster internet. For further information including how the data may be
+      shared, where the data may be transferred and Ookla's contact details,
+      please see our Privacy Policy at:
+        http://www.speedtest.net/privacy
+
+  server_id:
+    name: Speedtest Server Id
+    description: >-
+      Leave blank for automatic server selection (recommended), or enter a
+      numeric server ID to use a particular server. You can find server IDs
+      by running the Speedtest CLI with the --servers option.
+
+  frequency:
+    name: Test Frequency
+    description: >-
+      How often to run the speedtest in minutes. Default is 1440 (24 hours).
+      Minimum is 30 minutes, maximum is 43200 minutes (30 days).
