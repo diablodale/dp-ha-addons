@@ -4,10 +4,10 @@ name: "dp speedtest"
 description: >-
   Measure internet connection performance metrics with Speedtest CLI
 url: "https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest"
-version: "0.1.1"
+version: "0.1.30"
 homeassistant: 2025.3.4
 stage: experimental
-slug: dp-speedtest
+slug: dp-speedtest  # appended to create actual slug in HA server db, e.g. local_dp-speedtest, 5c53de3b_esphome
 panel_icon: mdi:speedometer
 # panel_title:
 
@@ -23,10 +23,12 @@ init: false
 #watchdog: ???
 
 # permissions
-homeassistant_api: true # access home assistant REST api proxy at http://supervisor/core/api
-#auth_api: true
-#ingress: true
-#hassio_api: true
+homeassistant_api: true # access home assistant REST api proxy at `http://supervisor/core/api`, subset of full supervisor api
+# only hassio_role=manager could run `bashio::addons` to get slugs for all addons
+# default and homeassistant worked for specifics like `bashio::addon.name` since they call `http://supervisor/addons/self/info`
+#hassio_api: true # allows a range of supervisor api access
+#hassio_role: homeassistant
+
 
 # TODO create services like a python http server?
 #startup: services
@@ -48,5 +50,3 @@ schema:
 options:
   accept_eula: false
   accept_privacy: false
-  #interval: 1440
-  #log_level: info

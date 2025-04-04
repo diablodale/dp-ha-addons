@@ -180,3 +180,13 @@ License acceptance recorded. Continuing.
 {"type":"log","timestamp":"2025-04-04T03:14:35Z","message":"Loaded latency: cannot read response.: [0] Cannot read from uninitialized socket.","level":"warning"}
 {"type":"log","timestamp":"2025-04-04T03:14:39Z","message":"No libz support available, not compressing data.","level":"warning"}
 ```
+
+### Version
+
+```
+1e1518990a69:/# su -c './speedtest --version'
+Speedtest by Ookla 1.2.0.84 (ea6b6773cf) Linux/x86_64-linux-musl 5.15.167.4-microsoft-standard-WSL2 x86_64
+
+The official command line client for testing the speed and performance
+of your internet connection.
+```

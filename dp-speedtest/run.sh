@@ -33,6 +33,75 @@ if bashio::config.false 'accept_eula' || bashio::config.false 'accept_privacy'; 
 fi
 
 ##################
+# create ha resources
+##################
+bashio::log.debug "Create Home Assistant resources"
+
+# workaround https://github.com/hassio-addons/bashio/issues/163
+# returns {"name":"dp speedtest","slug":"local_dp-speedtest","hostname":"local-dp-speedtest","dns":["local-dp-speedtest.local.hass.io"], ...
+#ADDON_INFO=$(bashio::addons 'self' 'addons.self.info' '.')
+#bashio::log.info "Addon info: $ADDON_INFO"
+
+# Get the expanded slug of the addon, e.g. `local_dp-speedtest`
+# https://developers.home-assistant.io/docs/add-ons/communication#network
+#ADDON_SLUG=$(bashio::jq "${ADDON_INFO}" '.slug')
+ADDON_SLUG=$(bashio::addons 'self' "addons.self.slug" '.slug')
+bashio::log.info "Addon slug: $ADDON_SLUG"
+
+# hostname
+ADDON_HOSTNAME=$(bashio::addon.hostname)
+bashio::log.info "Addon hostname: $ADDON_HOSTNAME"
+
+ADDON_NAME=$(bashio::addon.name)
+bashio::log.info "Addon name: $ADDON_NAME"
+
+ADDON_VERSION=$(bashio::addon.version)
+bashio::log.info "Addon version: $ADDON_VERSION"
+
+# Get the "model" from the test executable
+# if model is empty or doesn't contain manufacturer, exit
+MANUFACTURER="Ookla"
+TEST_VERSION=$(su -c 'speedtest --version | head -n 1')
+if [ -z "$TEST_VERSION" ] || ! echo "$TEST_VERSION" | grep -iq "$MANUFACTURER"; then
+    bashio::log.error "speedtest is not built into the addon correctly. Shutdown."
+    exit 1
+fi
+
+# parse the test version string
+MODEL=$(echo "$TEST_VERSION" | sed -E 's/^([^0-9]+) [0-9].*/\1/')
+MODEL_ID=$(echo $MODEL | sha1sum | head -c 10)
+HW_VERSION=$(echo "$TEST_VERSION" | sed -E 's/^[^0-9]+([0-9]+(\.[0-9]+)+).*/\1/')
+
+# Device specific to this addon from its specific repository
+DEVICE_ID="${ADDON_SLUG}"
+DEVICE_NAME="Internet Speed Monitor" # "${ADDON_NAME}"
+
+# Create a timestamp for the test
+TIMESTAMP=$(date +%s)
+FORMATTED_TIME=$(date -d @${TIMESTAMP} -Iseconds)
+
+# Create device JSON
+# https://developers.home-assistant.io/docs/device_registry_index/
+JSON_DATA=$(cat <<EOF
+{
+  "config_entries": ["${ADDON_SLUG}"],
+  "connections": [],
+  "identifiers": [["dp_speedtest", "${DEVICE_ID}"]],
+  "manufacturer": "${MANUFACTURER}",
+  "model": "${MODEL}",
+  "model_id": "${MODEL_ID}",
+  "name": "${DEVICE_NAME}",
+  "sw_version": "${ADDON_VERSION}",
+  "hw_version": "${HW_VERSION}"
+}
+EOF
+)
+bashio::log.info "Device JSON: ${JSON_DATA}"
+
+# Create or update the device
+#bashio::api.supervisor POST /core/api/device_registry "$json"
+
+##################
 # run single speedtest
 ##################
 run_speedtest() {
