@@ -32,8 +32,17 @@ configuration:
       numeric server ID to use a particular server. You can find server IDs
       by running the Speedtest CLI with the --servers option.
 
-  frequency:
-    name: Test Frequency
+  interval:
+    name: Test Interval
     description: >-
       How often to run the speedtest in minutes. Default is 1440 (24 hours).
       Minimum is 30 minutes, maximum is 43200 minutes (30 days).
+
+  static_results:
+    name: Static Test Results
+    description: >-
+      Provide sample JSON results for debugging instead of running an actual test.
+      When enabled, the add-on will use these predefined results rather than
+      performing a real speedtest. This is useful for testing the add-on's
+      functionality without consuming bandwidth or when troubleshooting issues.
+      Must be valid Speedtest CLI JSON output format.

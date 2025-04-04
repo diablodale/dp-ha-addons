@@ -5,19 +5,9 @@ FROM $BUILD_FROM
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # python can included with the -python images
-#RUN apk add --no-cache python3
 
 # set to our add-on persistent data directory
 #WORKDIR /data
-
-# download speedtest-cli for given BUILD_ARCH
-# https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-i386.tgz
-# https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-x86_64.tgz
-# https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-armel.tgz
-# https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-armhf.tgz
-# https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz
-# ...existing code...
-
 
 # Speedtest CLI version
 ARG SPEEDTEST_VERSION="1.2.0"
@@ -49,11 +39,3 @@ RUN chmod a+x /run.sh
 
 # declare application to run
 CMD [ "/run.sh" ]
-
-
-
-# && wget -O /tmp/speedtest.tgz "${SPEEDTEST_URL}" \
-
-# && curl -sSLf -o /tmp/speedtest.tgz "${SPEEDTEST_URL}" \
-
-# export SPEEDTEST_VERSION="1.2.0" && export BUILD_ARCH="amd64"

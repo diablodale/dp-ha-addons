@@ -7,7 +7,7 @@ url: "https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest"
 version: "0.1.0"
 homeassistant: 2025.3.4
 stage: experimental
-slug: "dp-speedtest"
+slug: dp-speedtest
 panel_icon: mdi:speedometer
 # panel_title:
 
@@ -41,9 +41,10 @@ schema:
   accept_eula: bool
   accept_privacy: bool
   server_id: int(1,)?
-  frequency: int(30,43200)
+  interval: int(1,43200) # TODO change min to 30
+  static_results: str(,1024)?
 
 options:
   accept_eula: false
   accept_privacy: false
-  frequency: 1440
+  interval: 1440

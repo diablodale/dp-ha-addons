@@ -30,50 +30,124 @@ if bashio::config.false 'accept_eula' || bashio::config.false 'accept_privacy'; 
     exit 1
 fi
 
-################
-# scheduling
-################
-
-# Get the frequency from config (default to 1440 minutes if not specified - 24 hours)
-FREQUENCY_MINUTES=$(bashio::config 'frequency' "1440")
-FREQUENCY_SECONDS=$((FREQUENCY_MINUTES * 60))
-
-# Check if lastrun file exists
-if [ -f /data/lastrun ]; then
-    # Get the timestamp of the last run
-    LAST_RUN=$(stat -c %Y /data/lastrun)
-    CURRENT_TIME=$(date +%s)
-    TIME_DIFF=$((CURRENT_TIME - LAST_RUN))
-    bashio::log.trace "Schedule last: $(date -d @"$LAST_RUN") now: $(date -d @"$CURRENT_TIME") diff: $TIME_DIFF freq: $FREQUENCY_SECONDS"
-
-    # Check if enough time has passed since the last run
-    if [ $TIME_DIFF -lt $FREQUENCY_SECONDS ]; then
-        # Exit early -- it's not time to run yet
-        NEXT_RUN=$((FREQUENCY_SECONDS - TIME_DIFF))
-        NEXT_RUN_MINUTES=$((NEXT_RUN / 60))
-        bashio::log.info "Last speedtest was run $((TIME_DIFF / 60)) minutes ago."
-        bashio::log.info "Next speedtest scheduled in $NEXT_RUN_MINUTES minutes."
-        exit 0
+##################
+# run single speedtest
+##################
+run_speedtest() {
+    # get server id
+    if bashio::config.has_value 'server_id'; then
+        SERVER_ID="--server-id=$(bashio::config 'server_id')"
+    else
+        SERVER_ID=""
     fi
-fi
 
-# get server id
-SERVER_ID=""
-if bashio::config.has_value 'server_id'; then
-    SERVER_ID="--server-id=$(bashio::config 'server_id')"
-fi
+    # Update the lastrun timestamp
+    # note that timestamp is updated regardless of the success of the speedtest
+    touch /data/lastrun
 
-# Update the lastrun timestamp
-# note that timestamp is updated regardless of the success of the speedtest
-touch /data/lastrun
+    # run test or use static results
+    if bashio::config.has_value 'static_results'; then
+        bashio::log.debug "Simulate test with static test results from configuration"
+        RESULTS_JSON=$(bashio::config 'static_results')
+    else
+        # record acceptance of EULA and privacy, run test
+        # requires su with homeassistant base containers or leads to exception and crash
+        RUN_CMD="speedtest --accept-license --accept-gdpr --format=json --progress=no ${SERVER_ID} > /data/speedtest-results.json"
+        if ! su -c "$RUN_CMD"; then
+            bashio:log.error "$RUN_CMD"
+            bashio:log.error "Speedtest failed. Check the log for more information."
+            return 1
+        fi
+        bashio:log.debug "$RUN_CMD"
+        RESULTS_JSON=$(cat /data/speedtest-results.json)
+    fi
 
-# record acceptance of EULA and privacy, run test
-# requires su with homeassistant base containers or leads to exception and crash
-RUN_CMD="speedtest --accept-license --accept-gdpr --format=json --progress=no ${SERVER_ID} > /data/speedtest-results.json"
-if ! su -c "$RUN_CMD"; then
-    bashio:log.error "$RUN_CMD"
-    bashio:log.error "Speedtest failed. Check the log for more information."
-    exit 0
-fi
-bashio:log.debug "$RUN_CMD"
+    # Extract speed values
+    DOWNLOAD_BANDWIDTH_BYTES=$(bashio::jq "$RESULTS_JSON" '.download.bandwidth')
+    UPLOAD_BANDWIDTH_BYTES=$(bashio::jq "$RESULTS_JSON" '.upload.bandwidth')
+    IDLE_LATENCY_MS=$(bashio::jq "$RESULTS_JSON" '.ping.latency')
+    UPLOAD_LATENCY_MS=$(bashio::jq "$RESULTS_JSON" '.upload.latency.iqm')
+    DOWNLOAD_LATENCY_MS=$(bashio::jq "$RESULTS_JSON" '.download.latency.iqm')
 
+    # validate values
+    if [ -z "$DOWNLOAD_BANDWIDTH_BYTES" ] || [ -z "$UPLOAD_BANDWIDTH_BYTES" ] || [ -z "$IDLE_LATENCY_MS" ] || [ -z "$UPLOAD_LATENCY_MS" ] || [ -z "$DOWNLOAD_LATENCY_MS" ]; then
+        bashio::log.error "Missing raw data: down MBps $DOWNLOAD_BANDWIDTH_BYTES, up $UPLOAD_BANDWIDTH_BYTES, idleL ms $IDLE_LATENCY_MS, downL $DOWNLOAD_LATENCY_MS, upL $UPLOAD_LATENCY_MS"
+        return 1
+    fi
+
+    # Convert speed values to Mbps (mega bits per second)
+    DOWNLOAD_BANDWIDTH_Mbps=$(echo "scale=2; $DOWNLOAD_BANDWIDTH_BYTES * 8 / 1000000" | bc)
+    UPLOAD_BANDWIDTH_Mbps=$(echo "scale=2; $UPLOAD_BANDWIDTH_BYTES * 8 / 1000000" | bc)
+    IDLE_LATENCY_MS=$(echo "scale=0; $IDLE_LATENCY_MS" | bc)
+    UPLOAD_LATENCY_MS=$(echo "scale=0; $UPLOAD_LATENCY_MS" | bc)
+    DOWNLOAD_LATENCY_MS=$(echo "scale=0; $DOWNLOAD_LATENCY_MS" | bc)
+    bashio::log.debug "down Mbps $DOWNLOAD_BANDWIDTH_Mbps, up $UPLOAD_BANDWIDTH_Mbps, idleL ms $IDLE_LATENCY_MS, downL $DOWNLOAD_LATENCY_MS, upL $UPLOAD_LATENCY_MS"
+
+    # Report current results
+    bashio::log.info "Speedtest results:"
+    bashio::log.info "Download: $DOWNLOAD_BANDWIDTH_Mbps Mbps ($DOWNLOAD_LATENCY_MS ms)"
+    bashio::log.info "Upload: $UPLOAD_BANDWIDTH_Mbps Mbps ($UPLOAD_LATENCY_MS ms)"
+    bashio::log.info "Ping: $IDLE_LATENCY_MS ms"
+
+    # TODO push results to home assistant
+    return 0
+}
+
+################
+# Main loop
+################
+while true; do
+    # Get the interval from config (default to 1440 minutes if not specified - 24 hours)
+    INTERVAL_M=$(bashio::config 'interval' "1440")
+    if bashio::config.has_value 'static_results'; then
+        MIN_INTERVAL_M=1
+    else
+        MIN_INTERVAL_M=30
+    fi
+    if [ "$INTERVAL_M" -lt "$MIN_INTERVAL_M" ]; then
+        bashio::log.warning "interval of $INTERVAL_M minutes is too low; using $MIN_INTERVAL_M minutes"
+        INTERVAL_M=$MIN_INTERVAL_M
+    fi
+    INTERVAL_S=$((INTERVAL_M * 60))
+
+    # Check when the last run was
+    if [ -f /data/lastrun ]; then
+        # Get the timestamp of the last run
+        LAST_RUN_TIMESTAMP=$(stat -c %Y /data/lastrun)
+        CURRENT_TIMESTAMP=$(date +%s)
+        TIME_DIFF_S=$((CURRENT_TIMESTAMP - LAST_RUN_TIMESTAMP))
+        bashio::log.trace "Schedule last: $(date -d @"$LAST_RUN_TIMESTAMP") now: $(date -d @"$CURRENT_TIMESTAMP") diff: ${TIME_DIFF_S}/${INTERVAL_S}"
+
+        # Check if enough time has passed since the last run
+        if [ $TIME_DIFF_S -ge $INTERVAL_S ]; then
+            # Time to run the test
+            run_speedtest
+            # Continue loop to recalculate next sleep time immediately
+            continue
+        else
+            # Calculate time until next run
+            SLEEP_TIME_S=$((INTERVAL_S - TIME_DIFF_S))
+
+            # Cap maximum sleep time at 1 hour to reload config changes
+            MAX_SLEEP_S=3600
+            if [ $SLEEP_TIME_S -gt $MAX_SLEEP_S ]; then
+                SLEEP_TIME_S=$MAX_SLEEP_S
+                bashio::log.info "Sleep time capped at 1 hour to handle configuration changes"
+            fi
+
+            # Log next run time (in minutes)
+            NEXT_RUN_M=$((SLEEP_TIME_S / 60))
+            NEXT_RUN_TIMESTAMP=$(($(date +%s) + SLEEP_TIME_S))
+            NEXT_RUN_TIME=$(date -d@"$NEXT_RUN_TIMESTAMP" -Iminutes)
+            bashio::log.info "Next speedtest scheduled at $NEXT_RUN_TIME (in $NEXT_RUN_M minutes)"
+
+            # Sleep until next scheduled run or for maximum time
+            bashio::log.debug "Sleeping for $SLEEP_TIME_S seconds"
+            sleep ${SLEEP_TIME_S}s
+        fi
+    else
+        # No previous run - run the speedtest immediately
+        bashio::log.notice "Last run timestamp file missing - running test now"
+        run_speedtest
+    fi
+done
