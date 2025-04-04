@@ -4,7 +4,7 @@ name: "dp speedtest"
 description: >-
   Measure internet connection performance metrics with Speedtest CLI
 url: "https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest"
-version: "0.1.0"
+version: "0.1.1"
 homeassistant: 2025.3.4
 stage: experimental
 slug: dp-speedtest
@@ -40,11 +40,13 @@ homeassistant_api: true # access home assistant REST api proxy at http://supervi
 schema:
   accept_eula: bool
   accept_privacy: bool
+  interval: int(1,43200)?
   server_id: int(1,)?
-  interval: int(1,43200) # TODO change min to 30
-  static_results: str(,1024)?
+  log_level: list(off|fatal|error|warning|notice|info|debug|trace|all)?
+  static_results: str?
 
 options:
   accept_eula: false
   accept_privacy: false
-  interval: 1440
+  #interval: 1440
+  #log_level: info

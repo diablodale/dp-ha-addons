@@ -8,8 +8,8 @@ configuration:
       interface on a personal computer. Your use of this software is subject
       to the End User License Agreement, Terms of Use and Privacy Policy at
       these URLs:
-        https://www.speedtest.net/about/eula
-        https://www.speedtest.net/about/terms
+        https://www.speedtest.net/about/eula,
+        https://www.speedtest.net/about/terms,
         https://www.speedtest.net/about/privacy
 
   accept_privacy:
@@ -28,21 +28,28 @@ configuration:
   server_id:
     name: Speedtest Server Id
     description: >-
-      Leave blank for automatic server selection (recommended), or enter a
-      numeric server ID to use a particular server. You can find server IDs
+      Leave blank for automatic server selection (recommended), or enter the
+      numeric server ID for a specific server. You can find server IDs
       by running the Speedtest CLI with the --servers option.
 
   interval:
     name: Test Interval
     description: >-
-      How often to run the speedtest in minutes. Default is 1440 (24 hours).
-      Minimum is 30 minutes, maximum is 43200 minutes (30 days).
+      How often to run the speedtest in minutes. Default is 1440 minutes (24 hours).
+      Range is 30 to 43200 minutes (30 minutes to 30 days).
 
   static_results:
-    name: Static Test Results
+    name: JSON Test Results
     description: >-
-      Provide sample JSON results for debugging instead of running an actual test.
-      When enabled, the add-on will use these predefined results rather than
-      performing a real speedtest. This is useful for testing the add-on's
+      JSON test results for debugging instead of running an actual test.
+      When enabled, the add-on will use this static JSON rather than producing
+      JSON from a real speedtest. This is useful for testing the add-on's
       functionality without consuming bandwidth or when troubleshooting issues.
       Must be valid Speedtest CLI JSON output format.
+
+  log_level:
+    name: Log Level
+    description: >-
+      Controls the verbosity of log output. Lower levels like 'trace' and 'debug'
+      provide more detailed information useful for troubleshooting, while higher levels
+      like 'warning' and 'error' only show important messages. Default level is 'info'.
