@@ -1,10 +1,9 @@
 ---
-version: 9.16.0
-slug: ssh
-name: Terminal & SSH
-description: Allow logging in remotely to Home Assistant using SSH
-url: https://github.com/home-assistant/addons/tree/master/ssh
-codenotary: notary@home-assistant.io
+version: 9.16.1
+slug: dp-ssh
+name: Terminal & SSH (plus homeassistant api permissions)
+description: Allow logging in remotely to Home Assistant using SSH with homeassistant and hassio api permission
+url: https://github.com/diablodale/dp-ha-addons/tree/main/dp-ssh
 advanced: true
 arch:
   - armhf
@@ -13,10 +12,10 @@ arch:
   - amd64
   - i386
 audio: true
+homeassistant_api: true
 hassio_api: true
 hassio_role: manager
 host_dbus: true
-image: homeassistant/{arch}-addon-ssh
 ingress: true
 init: false
 map:

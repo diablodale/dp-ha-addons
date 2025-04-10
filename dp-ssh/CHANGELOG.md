@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.16.1
+
+Forked from canon https://github.com/home-assistant/addons/tree/4575e549cedfb7d34906234fd77769d14c8acc6a
+to add `homeassistant_api: true` to `config.yaml` so that the add-on's ssh shell can be used
+with the Home Assistant REST and WebSocket APIs.
+
 ## 9.16.0
 
 - Upgrade ttyd to 1.7.7 (fixes copy to clipboard using shift and drag)
