@@ -207,6 +207,36 @@ async def load_addon_options():
       raise
   logger.trace(f"Loaded addon options: {ADDON_OPTIONS}")
 
+
+def enforce_eula_privacy_accept():
+    """
+    Check if the EULA and privacy policy have been accepted.
+    If not, raise an exception.
+
+    Testing shows that EULA and Privacy Policy acceptance are recorded
+    in `/root/.config/ookla/speedtest-cli.json`
+    ```json
+    { "Settings": {
+        "LicenseAccepted": "604ec27f828456331ebf441826292c49276bd3c1bee1a2f65a6452f505c4061c",
+        "GDPRTimeStamp": 1743729654
+    } }
+    ```
+    where
+    - `LicenseAccepted` is recorded when EULA accepted; set to a SHA256 hash
+    - `GDPRTimeStamp` is recorded when Privacy Policy accepted; set to current epoch timestamp
+    and both, one, or none of these values may be present in the file.
+    Any previous state of the file is retained and not overwritten when already valid.
+    Using `speedtest --accept-license --accept-gdpr` will record any missing user acceptance.
+    Therefore, it is unneeded to backup/restore the file with /data.
+
+    Raises:
+        Exception: If the EULA or privacy policy has not been accepted.
+    """
+    if not ADDON_OPTIONS.get("accept_eula", False) or not ADDON_OPTIONS.get("accept_privacy", False):
+        logger.critical("Ookla requires you to accept their EULA and Privacy Policy.")
+        logger.critical("Please accept the EULA and Privacy Policy in the addon config UI.")
+        raise Exception("Ookla EULA or Privacy Policy not accepted")
+
 ###############
 # main
 ###############
@@ -217,8 +247,9 @@ async def main():
     logger.error("This script can only run within an addon having supervisor access")
     return 1
 
-  # Load globals
+  # validate addon options
   await load_addon_options()
+  enforce_eula_privacy_accept()
 
   # Initialize Hass client
   async with HassClient(websocket_url=WS_URL, token=SUPERVISOR_TOKEN) as client:
