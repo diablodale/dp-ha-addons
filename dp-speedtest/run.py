@@ -11,9 +11,17 @@ from loguru import logger
 import os
 import sys
 
-#############################
-# configuration and globals
-#############################
+###############
+# globals
+###############
+
+ADDON_OPTIONS = {}
+SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN")
+WS_URL = "ws://supervisor/core/websocket"
+
+###############
+# classes
+###############
 
 class InterceptLogHandler(standard_logging.Handler):
     """
@@ -37,21 +45,6 @@ class InterceptLogHandler(standard_logging.Handler):
             frame = frame.f_back
             depth += 1
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
-
-# Configure Loguru logger to intercept standard logging
-logger.remove()
-logger.add(sys.stderr, level="INFO")
-standard_logging.basicConfig(handlers=[InterceptLogHandler()], level=0, force=True)
-
-# require supervisor token
-SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN")
-if not SUPERVISOR_TOKEN:
-  logger.error("SUPERVISOR_TOKEN is not set")
-  exit(1)
-
-# globals
-WS_URL = "ws://supervisor/core/websocket"
-ADDON_OPTIONS = {}
 
 ###############
 # functions
@@ -169,7 +162,7 @@ async def supervisor_rest_api(method: str, resource: str, post_data: dict = None
         logger.error(f"Error calling api: {e}")
         raise
 
-async def load_addon_options():
+def load_addon_options():
   """
   Load addon options from the /data/options.json file, or simulate
   it for testing purposes when static_results.json is present.
@@ -183,7 +176,6 @@ async def load_addon_options():
   try:
     with open("static_results.json", "r") as f:
       # Load the static results for testing
-      logger.debug("Simulating /data/options.json")
       ADDON_OPTIONS = {
         # options having schema ? and having no value don't appear in json, their fields are missing
         # options having schema int appear in json as numbers not strings
@@ -191,7 +183,7 @@ async def load_addon_options():
         "accept_privacy": True,
         "interval": 1,
         "server_id": 1234,
-        "log_level": "debug",
+        "log_level": "info",
         "static_results": f.read(),
       }
   except FileNotFoundError:
@@ -238,7 +230,7 @@ def enforce_eula_privacy_accept():
         raise Exception("Ookla EULA or Privacy Policy not accepted")
 
 ###############
-# main
+# async main
 ###############
 
 async def main():
@@ -248,7 +240,6 @@ async def main():
     return 1
 
   # validate addon options
-  await load_addon_options()
   enforce_eula_privacy_accept()
 
   # Initialize Hass client
@@ -258,7 +249,7 @@ async def main():
       #await client.subscribe_events(lambda event: logger.debug(f"Event received: {event}"), event_type="state_changed")
       #await asyncio.sleep(10)
       devices = await client.get_device_registry()
-      logger.info(f"Devices: {devices}")
+      logger.trace(f"Devices: {devices}")
 
       # BUGBUG https://github.com/music-assistant/python-hass-client/issues/234
       logger.debug("workaround race condition bug in https://github.com/music-assistant/python-hass-client/issues/234")
@@ -269,5 +260,21 @@ async def main():
 
   logger.trace("Done with main()")
 
+###############
+# main
+###############
+
+# Configure Loguru logger to intercept standard logging
+load_addon_options()
+logger.remove()
+logger.add(sys.stderr, level=ADDON_OPTIONS.get("log_level", "WARNING").upper())
+standard_logging.basicConfig(handlers=[InterceptLogHandler()], level=0, force=True)
+
+# require supervisor token
+if not SUPERVISOR_TOKEN:
+  logger.critical("SUPERVISOR_TOKEN is not set")
+  raise Exception("SUPERVISOR_TOKEN is not set")
+
+# launch main in asyncio event loop
 if __name__ == "__main__":
   asyncio.run(main(), debug=True)

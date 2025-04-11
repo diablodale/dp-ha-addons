@@ -52,4 +52,4 @@ configuration:
     description: >-
       Controls the verbosity of log output. Lower levels like 'trace' and 'debug'
       provide more detailed information useful for troubleshooting, while higher levels
-      like 'warning' and 'error' only show important messages. Default level is 'info'.
+      like 'warning' and 'error' only show important messages. Default level is 'warning'.

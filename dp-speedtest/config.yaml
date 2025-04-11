@@ -44,7 +44,7 @@ schema:
   accept_privacy: bool
   interval: int(1,43200)?
   server_id: int(1,)?
-  log_level: list(off|fatal|error|warning|notice|info|debug|trace|all)?
+  log_level: list(critical|error|warning|success|info|debug|trace)?
   static_results: str?
 
 options:
