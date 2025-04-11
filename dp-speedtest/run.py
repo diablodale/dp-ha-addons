@@ -4,11 +4,13 @@ import aiohttp
 import asyncio
 from hass_client import HomeAssistantClient as HassClient
 #from hass_client.models import Event
-from hass_client.utils import async_is_supervisor
+from hass_client.utils import is_supervisor
 import json
 import logging as standard_logging
 from loguru import logger
 import os
+import re
+from subprocess import check_output
 import sys
 
 ###############
@@ -17,7 +19,10 @@ import sys
 
 ADDON_OPTIONS = {}
 SUPERVISOR_TOKEN = os.getenv("SUPERVISOR_TOKEN")
-WS_URL = "ws://supervisor/core/websocket"
+WS_URL = "ws://supervisor/core/websocket" # https://github.com/home-assistant/supervisor/blob/d413e0dcb924b9bbdebdb91dd0be98e7755c7f2b/supervisor/api/__init__.py#L502
+TEST_MANUFACTURER = "Ookla"
+TEST_VERSION_CMD = "su -c './speedtest --version'" # typical: Speedtest by Ookla 1.2.0.84 (ea6b6773cf) Linux/x86_64-linux-musl 6.12.20-haos x86_64
+TEST_VERSION_REGEX = r"^([^\d]+)\s([\d.]+)" # group 1 is test name, group 2 is version
 
 ###############
 # classes
@@ -199,6 +204,20 @@ def load_addon_options():
       raise
   logger.trace(f"Loaded addon options: {ADDON_OPTIONS}")
 
+def enforce_supervisor():
+    """
+    Check if the script is running in a Home Assistant Supervisor environment.
+    If not, raise an exception.
+
+    Raises:
+        Exception: If the script is not running in a Supervisor environment.
+    """
+    if not SUPERVISOR_TOKEN:
+      logger.critical("SUPERVISOR_TOKEN is a required environment variable")
+      raise Exception("SUPERVISOR_TOKEN is a required environment variable")
+    if not is_supervisor():
+      logger.critical("This script can only run within an addon having supervisor access")
+      raise Exception("This script can only run within an addon having supervisor access")
 
 def enforce_eula_privacy_accept():
     """
@@ -229,27 +248,130 @@ def enforce_eula_privacy_accept():
         logger.critical("Please accept the EULA and Privacy Policy in the addon config UI.")
         raise Exception("Ookla EULA or Privacy Policy not accepted")
 
+async def get_device_info():
+    """
+    Create a device registry entry for the addon.
+    This is used to associate the addon with the speedtest entities.
+    """
+    # Get the addon's info
+    addon_info = await supervisor_rest_api("GET", "/addons/self/info")
+    addon_slug = addon_info.get("slug")
+    addon_version = addon_info.get("version")
+
+    # Get the test version string by running the test app command and parsing
+    try:
+        test_header = check_output(TEST_VERSION_CMD, shell=True, text=True).splitlines()[0]
+    except Exception as e:
+        logger.error(f"Error running test app: {e}")
+        raise
+
+    # Ensure output contains manufacturer string
+    if not test_header or not TEST_MANUFACTURER in test_header:
+        logger.error(f"Test app is not built into the addon as expected")
+        raise Exception(f"Test app is not built into the addon as expected")
+
+    # parse header with regex
+    match = re.match(TEST_VERSION_REGEX, test_header)
+    if not match:
+        logger.error("Failed to parse test app header")
+        raise Exception("Failed to parse test app header")
+    test_name = match.group(1)
+    test_version = match.group(2)
+    logger.trace(f"Test app name: {test_name}, version: {test_version}")
+
+    # describe model
+    model = test_name
+    model_id = test_name.encode("utf-8").hex()
+    hw_version = test_version
+
+    # Device specific to this addon from its specific repository
+    device_id = addon_slug
+    device_name = "Internet Speed Monitor"
+
+    # return device info
+    return {
+        "config_entries": [addon_slug],
+        #"connections": [],
+        "identifiers": [["dp_speedtest", device_id]],
+        "manufacturer": TEST_MANUFACTURER,
+        "model": model,
+        "model_id": model_id,
+        "name": device_name,
+        "sw_version": addon_version,
+        "hw_version": hw_version,
+        "entry_type": "service",
+        #"via_device_id": None,
+        #"disabled_by": None,
+        "configuration_url": f"homeassistant://hassio/addon/{addon_slug}/config",
+        "serial_number": f"{device_id}-{model_id}",
+    }
+
+async def create_speedtest_entities():
+    """
+    Create speedtest sensor entities and associate them with a device.
+    """
+    # Get the device info
+    device_info = await get_device_info()
+
+    # Create the download speed sensor
+    download_entity = {
+        "state": "0",
+        "attributes": {
+            "unique_id": f"{device_info["serial_number"]}973e46c0-51ee-5e64-be46-0ab99d14201a",
+            "unit_of_measurement": "Mbps",
+            "friendly_name": "Speedtest Download",
+            "device_class": "data_rate",
+            "state_class": "measurement",
+            "icon": "mdi:download-network",
+            "device_info": device_info,
+        }
+    }
+
+    # Create the entity using the states API
+    await supervisor_rest_api(
+        "POST",
+        "/core/api/states/sensor.speedtest_download",
+        post_data=download_entity
+    )
+    logger.info("Created download speed sensor entity")
+
+    # Similarly for upload speed
+    upload_entity = {
+        "state": "0",
+        "attributes": {
+            "unique_id": f"{device_info["serial_number"]}e912ec53-f890-50c4-810c-1dcbfec9464a",
+            "unit_of_measurement": "Mbps",
+            "friendly_name": "Speedtest Upload",
+            "device_class": "data_rate",
+            "state_class": "measurement",
+            "icon": "mdi:upload-network",
+            "device_info": device_info,
+        }
+    }
+
+    await supervisor_rest_api(
+        "POST",
+        "/core/api/states/sensor.speedtest_upload",
+        post_data=upload_entity
+    )
+    logger.info("Created upload speed sensor entity")
+
 ###############
 # async main
 ###############
 
 async def main():
-  # Check if running in a supervisor environment
-  if not await async_is_supervisor():
-    logger.error("This script can only run within an addon having supervisor access")
-    return 1
-
-  # validate addon options
-  enforce_eula_privacy_accept()
-
   # Initialize Hass client
   async with HassClient(websocket_url=WS_URL, token=SUPERVISOR_TOKEN) as client:
     try:
       logger.info("Do work with Home Assistant")
       #await client.subscribe_events(lambda event: logger.debug(f"Event received: {event}"), event_type="state_changed")
       #await asyncio.sleep(10)
+
+      await create_speedtest_entities()
       devices = await client.get_device_registry()
       logger.trace(f"Devices: {devices}")
+      await asyncio.sleep(100)
 
       # BUGBUG https://github.com/music-assistant/python-hass-client/issues/234
       logger.debug("workaround race condition bug in https://github.com/music-assistant/python-hass-client/issues/234")
@@ -270,10 +392,9 @@ logger.remove()
 logger.add(sys.stderr, level=ADDON_OPTIONS.get("log_level", "WARNING").upper())
 standard_logging.basicConfig(handlers=[InterceptLogHandler()], level=0, force=True)
 
-# require supervisor token
-if not SUPERVISOR_TOKEN:
-  logger.critical("SUPERVISOR_TOKEN is not set")
-  raise Exception("SUPERVISOR_TOKEN is not set")
+# enforcements
+enforce_eula_privacy_accept()
+enforce_supervisor()
 
 # launch main in asyncio event loop
 if __name__ == "__main__":

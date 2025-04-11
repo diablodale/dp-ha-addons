@@ -61,7 +61,7 @@ bashio::log.info "Addon version: $ADDON_VERSION"
 # Get the "model" from the test executable
 # if model is empty or doesn't contain manufacturer, exit
 MANUFACTURER="Ookla"
-TEST_VERSION=$(su -c 'speedtest --version | head -n 1')
+TEST_VERSION=$(su -c './speedtest --version | head -n 1')
 if [ -z "$TEST_VERSION" ] || ! echo "$TEST_VERSION" | grep -iq "$MANUFACTURER"; then
     bashio::log.error "speedtest is not built into the addon correctly. Shutdown."
     exit 1
