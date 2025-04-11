@@ -1,0 +1,9 @@
+# https://developers.home-assistant.io/docs/add-ons/configuration#add-on-dockerfile
+# https://developers.home-assistant.io/docs/add-ons/configuration#add-on-extended-build
+# https://github.com/home-assistant/docker-base
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base-python
+  amd64: ghcr.io/home-assistant/amd64-base-python
+  armhf: ghcr.io/home-assistant/armhf-base-python
+  armv7: ghcr.io/home-assistant/armv7-base-python
+  i386: ghcr.io/home-assistant/i386-base-python

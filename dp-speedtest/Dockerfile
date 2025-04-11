@@ -4,8 +4,6 @@ FROM $BUILD_FROM
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# python can included with the -python images
-
 # set to our add-on persistent data directory
 #WORKDIR /data
 
@@ -32,10 +30,15 @@ RUN if [ "${BUILD_ARCH}" == "i386" ]; then \
     chmod +x /usr/local/bin/speedtest && \
     rm /tmp/speedtest.tgz
 
+# python dependencies
+RUN pip install --no-cache-dir \
+    asyncio \
+    loguru \
+    git+https://github.com/music-assistant/python-hass-client.git@f5c1f565feaac7fe2ac379bb1993640c2748a796
+
 # Copy data for add-on
-COPY run.sh /
-RUN chmod a+x /run.sh
-    #ln -s /usr/share/zoneinfo/UTC /etc/localtime
+COPY run.sh run.py /
+RUN chmod a+x /run.sh /run.py
 
 # declare application to run
 CMD [ "/run.sh" ]

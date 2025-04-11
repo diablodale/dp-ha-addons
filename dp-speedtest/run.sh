@@ -92,14 +92,26 @@ JSON_DATA=$(cat <<EOF
   "model_id": "${MODEL_ID}",
   "name": "${DEVICE_NAME}",
   "sw_version": "${ADDON_VERSION}",
-  "hw_version": "${HW_VERSION}"
+  "hw_version": "${HW_VERSION}",
+  "entry_type": "service",
+  "via_device_id": null,
+  "disabled_by": null,
+  "configuration_url": "homeassistant://hassio/addon/${ADDON_SLUG}/config",
+  "serial_number": "${DEVICE_ID}-${MODEL_ID}"
 }
 EOF
 )
 bashio::log.info "Device JSON: ${JSON_DATA}"
 
-# Create or update the device
-#bashio::api.supervisor POST /core/api/device_registry "$json"
+# Create/update the device with Home Assistant
+bashio::log.level "debug"
+bashio::log.info "Registering device in Home Assistant"
+if ! bashio::api.supervisor POST /api/device_registry "$JSON_DATA"; then
+    bashio::log.fatal "Failed to register device in Home Assistant"
+    bashio::log.fatal "Shutdown."
+    #exit 1
+fi
+bashio::log.level "info"
 
 ##################
 # run single speedtest

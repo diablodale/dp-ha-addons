@@ -3,8 +3,8 @@
 name: "dp speedtest"
 description: >-
   Measure internet connection performance metrics with Speedtest CLI
-url: "https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest"
-version: "0.1.30"
+url: https://github.com/diablodale/dp-ha-addons/tree/main/dp-speedtest
+version: "0.1.45"
 homeassistant: 2025.3.4
 stage: experimental
 slug: dp-speedtest  # appended to create actual slug in HA server db, e.g. local_dp-speedtest, 5c53de3b_esphome
@@ -23,11 +23,11 @@ init: false
 #watchdog: ???
 
 # permissions
-homeassistant_api: true # access home assistant REST api proxy at `http://supervisor/core/api`, subset of full supervisor api
+homeassistant_api: true # access home assistant REST api proxy at `http://supervisor/core/api` (subset of full supervisor api) and ws://supervisor/core/websocket (will always fail auth without this perm)
 # only hassio_role=manager could run `bashio::addons` to get slugs for all addons
-# default and homeassistant worked for specifics like `bashio::addon.name` since they call `http://supervisor/addons/self/info`
+# roles default and homeassistant worked for specifics like `bashio::addon.name` since they call `http://supervisor/addons/self/info`
 #hassio_api: true # allows a range of supervisor api access
-#hassio_role: homeassistant
+#hassio_role: manager
 
 
 # TODO create services like a python http server?
