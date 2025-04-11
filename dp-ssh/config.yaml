@@ -1,8 +1,8 @@
 ---
-version: 9.16.1
+version: 9.16.3
 slug: dp-ssh
-name: Terminal & SSH (plus homeassistant api permissions)
-description: Allow logging in remotely to Home Assistant using SSH with homeassistant and hassio api permission
+name: Terminal, SSH, Python, homeassistant api permissions
+description: Allow logging in remotely to Home Assistant using SSH; includes Python, homeassistant and hassio permissions
 url: https://github.com/diablodale/dp-ha-addons/tree/main/dp-ssh
 advanced: true
 arch:

@@ -1,10 +1,10 @@
 # Changelog
 
-## 9.16.1
+## 9.16.3
 
-Forked from canon https://github.com/home-assistant/addons/tree/4575e549cedfb7d34906234fd77769d14c8acc6a
-to add `homeassistant_api: true` to `config.yaml` so that the add-on's ssh shell can be used
-with the Home Assistant REST and WebSocket APIs.
+- Forked from canon https://github.com/home-assistant/addons/tree/4575e549cedfb7d34906234fd77769d14c8acc6a
+- change to base python image
+- enable Home Assistant REST and WebSocket APIs with `homeassistant_api: true` into `config.yaml`
 
 ## 9.16.0
 
