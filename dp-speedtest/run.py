@@ -316,14 +316,15 @@ async def create_speedtest_entities():
     # Create the download speed sensor
     download_entity = {
         "state": "0",
+        #"force_update" = True,
         "attributes": {
-            "unique_id": f"{device_info["serial_number"]}973e46c0-51ee-5e64-be46-0ab99d14201a",
+            #"unique_id": f"{device_info["serial_number"]}973e46c0-51ee-5e64-be46-0ab99d14201a",
             "unit_of_measurement": "Mbps",
             "friendly_name": "Speedtest Download",
             "device_class": "data_rate",
             "state_class": "measurement",
             "icon": "mdi:download-network",
-            "device_info": device_info,
+            #"device_info": device_info,
         }
     }
 
@@ -338,14 +339,15 @@ async def create_speedtest_entities():
     # Similarly for upload speed
     upload_entity = {
         "state": "0",
+        #"force_update" = True,
         "attributes": {
-            "unique_id": f"{device_info["serial_number"]}e912ec53-f890-50c4-810c-1dcbfec9464a",
+            #"unique_id": f"{device_info["serial_number"]}e912ec53-f890-50c4-810c-1dcbfec9464a",
             "unit_of_measurement": "Mbps",
             "friendly_name": "Speedtest Upload",
             "device_class": "data_rate",
             "state_class": "measurement",
             "icon": "mdi:upload-network",
-            "device_info": device_info,
+            #"device_info": device_info,
         }
     }
 
@@ -356,6 +358,23 @@ async def create_speedtest_entities():
     )
     logger.info("Created upload speed sensor entity")
 
+async def delete_speedtest_entities(client: HassClient):
+    """
+    Delete speedtest sensor entities.
+    REST api not possible as its proxy blocks DELETE methods with status=405 method not allowed.
+    Websockets api is possible, but the auto-created entity does not appear in the entity registry.
+    """
+    raise Exception("Deleting speedtest entities auto-created by states is not possible")
+
+    # Similarly for upload speed
+    await client.send_command("config/entity_registry/remove", entity_id="sensor.speedtest_upload")
+    logger.info(f"Deleted upload speed sensor entity: {result}")
+
+    # Delete the download speed sensor
+    result = await client.send_command("config/entity_registry/remove", entity_id="sensor.speedtest_download")
+    logger.info(f"Deleted download speed sensor entity: {result}")
+
+
 ###############
 # async main
 ###############
@@ -364,14 +383,21 @@ async def main():
   # Initialize Hass client
   async with HassClient(websocket_url=WS_URL, token=SUPERVISOR_TOKEN) as client:
     try:
+      # BUGBUG https://github.com/music-assistant/python-hass-client/issues/234
       logger.info("Do work with Home Assistant")
+      logger.debug("workaround race condition bug in https://github.com/music-assistant/python-hass-client/issues/234")
+      await asyncio.sleep(0.5)
+
+
       #await client.subscribe_events(lambda event: logger.debug(f"Event received: {event}"), event_type="state_changed")
       #await asyncio.sleep(10)
 
       await create_speedtest_entities()
-      devices = await client.get_device_registry()
-      logger.trace(f"Devices: {devices}")
-      await asyncio.sleep(100)
+      await asyncio.sleep(60)
+      await delete_speedtest_entities(client)
+      #devices = await client.get_device_registry()
+      #logger.trace(f"Devices: {devices}")
+
 
       # BUGBUG https://github.com/music-assistant/python-hass-client/issues/234
       logger.debug("workaround race condition bug in https://github.com/music-assistant/python-hass-client/issues/234")
@@ -389,7 +415,7 @@ async def main():
 # Configure Loguru logger to intercept standard logging
 load_addon_options()
 logger.remove()
-logger.add(sys.stderr, level=ADDON_OPTIONS.get("log_level", "WARNING").upper())
+logger.add(sys.stderr, level=ADDON_OPTIONS.get("log_level", "DEBUG").upper())
 standard_logging.basicConfig(handlers=[InterceptLogHandler()], level=0, force=True)
 
 # enforcements
