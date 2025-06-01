@@ -1,0 +1,3 @@
+[submodule "tailscale"]
+	path = tailscale
+	url = https://github.com/diablodale/ha-addon-tailscale.git
